@@ -562,6 +562,24 @@
             x))
   (42 42 2))
 
+(deftest rcurry.3
+    (locally (declare (inline rcurry))
+      (let ((r (rcurry '/ 2)))
+	(funcall r 8)))
+  4)
+
+(deftest rcurry.4
+    (locally (declare (inline rcurry))
+      (let* ((x 1)
+	     (curried (rcurry (progn
+				(incf x)
+				(lambda (y z) (* x y z)))
+			      3)))
+	(list (funcall curried 7)
+	      (funcall curried 7)
+	      x)))
+  (42 42 2))
+
 (deftest named-lambda.1
     (let ((fac (named-lambda fac (x)
                  (if (> x 1)
@@ -693,6 +711,10 @@
 (deftest proper-list-p.2
     (proper-list-p '(1 2 . 3))
   nil)
+
+(deftest proper-list-p.3
+    (proper-list-p nil)
+  t)
 
 (deftest proper-list.type.1
     (let ((l1 (list 1))
@@ -898,6 +920,23 @@
    nil
    t))
 
+(deftest remove-from-plist.2
+    (handler-case
+	(remove-from-plist '(1) 'a)
+      (error () :good))
+  :good)
+
+(deftest remove-from-plistf.1
+    (let* ((x  (list 'x (copy-list '(a 1 b 2 c 3 d 4)) 'y))
+	   (y (cadr x)))
+      (values
+       (remove-from-plistf (cadr x) 'a 'c)
+       x
+       y))
+  (b 2 d 4)
+  (x (b 2 d 4) y)
+  (a 1 b 2 c 3 d 4))
+
 (deftest delete-from-plist.1
     (let ((orig '(a 1 b 2 c 3 d 4 d 5)))
       (list (delete-from-plist (copy-list orig) 'a 'c)
@@ -918,6 +957,22 @@
    nil
    t
    t))
+
+(deftest delete-from-plist.2
+    (handler-case
+	(let ((x (list 1)))
+	  (delete-from-plist x 'a))
+      (error () :good))
+  :good)
+
+(deftest delete-from-plistf.1
+    (let ((x (list 'x (copy-list '(a 1 b 2 c 3 d 4)) 'y)))
+      (values
+       (delete-from-plistf (cadr x) 'a 'c)
+       x))
+  (b 2 d 4)
+  (x (b 2 d 4) y))
+
 
 (deftest mappend.1
     (mappend (compose 'list '*) '(1 2 3) '(1 2 3))
@@ -1077,6 +1132,11 @@
       (minf (svref xv (incf p)) (incf p))
       (list p xv))
   (2 #(10 2 10)))
+
+(deftest factorial.1
+    (locally (declare (notinline factorial))
+      (mapcar #'factorial '(0 1 2 3 4)))
+  (1 1 2 6 24))
 
 (deftest subfactorial.1
     (mapcar #'subfactorial (iota 22))
@@ -1908,6 +1968,14 @@
   nil
   nil)
 
+(deftest doplist.2
+    (handler-case
+	(doplist (k v '(a 1 b 2 c) :bad)
+	    (declare (ignorable k v))
+	  nil)
+      (error () :good))
+  :good)
+
 (deftest count-permutations.1
     (values (count-permutations 31 7)
             (count-permutations 1 1)
@@ -1930,6 +1998,22 @@
 (deftest binomial-coefficient.2
     (alexandria:binomial-coefficient 2000000000000 20)
   430998041177272843950422879590338454856322722740402365741730748431530623813012487773080486408378680853987520854296499536311275320016878730999689934464711239072435565454954447356845336730100919970769793030177499999999900000000000)
+
+(deftest binomial-coefficient.3
+    (binomial-coefficient 0 0)
+  1)
+
+(deftest binomial-coefficient.4
+    (binomial-coefficient 1 1)
+  1)
+
+(deftest binomial-coefficient.5
+    (binomial-coefficient 5 1)
+  5)
+
+(deftest binomial-coefficient.6
+    (binomial-coefficient 5 4)
+  5)
 
 (deftest copy-stream.1
     (let ((data "sdkfjhsakfh weior763495ewofhsdfk sdfadlkfjhsadf woif sdlkjfhslkdfh sdklfjh"))
@@ -2045,3 +2129,59 @@
            (not aux)
            (eq t keyp)))
   t)
+
+(deftest featurep.1
+    (let ((*features* '(:foo)))
+      (and (featurep :foo)
+	   (featurep '(not :bar))
+	   (featurep '(or :foo :bar))
+	   (featurep '(or :bar :foo))
+	   (not (featurep '(and :foo :bar)))
+	   (not (featurep '(and :bar :foo)))))
+  t)
+
+(deftest featurep.2
+    (let ((*features* '(:foo :bar)))
+      (and (featurep '(and :foo :bar))
+	   (featurep '(and :bar :foo))
+	   (featurep '(or :foo :bar))
+	   (featurep '(or :bar :foo))
+	   (featurep :foo)
+	   (featurep :bar)
+	   (not (featurep '(not :foo)))
+	   (not (featurep '(not :bar)))))
+  t)
+
+(deftest ensure-function.1
+    (funcall (ensure-function #'car) '(1 . 2))
+  1)
+
+(deftest ensure-function.2
+    (funcall (ensure-function 'car) '(1 . 2))
+  1)
+
+(deftest ensure-functionf.1
+    (let ((fc (list 'car 'cdr)))
+      (ensure-functionf (car fc) (cadr fc))
+      (mapcar #'funcall fc '((a b) (c d))))
+  (a (d)))
+
+(deftest reversef.1
+    (let* ((x (list (list 1 2 3)))
+	   (y (car x)))
+      (values
+       (reversef (car x))
+       x
+       y))
+  (3 2 1)
+  ((3 2 1))
+  (1 2 3))
+
+(deftest nreversef.1
+    (let* ((x (list (list 1 2 3))))
+      (values
+       (nreversef (car x))
+       x))
+  (3 2 1)
+  ((3 2 1)))
+
